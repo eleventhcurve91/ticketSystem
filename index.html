@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sistema de Tiquetes - Univalle</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .logo {
+      max-height: 80px;
+    }
+    .ticket-card {
+      max-width: 400px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      padding: 30px 20px;
+      text-align: center;
+    }
+    .ticket-number {
+      background-color: #0d6efd;
+      color: white;
+      font-size: 2.5rem;
+      font-weight: bold;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .ticket-wait, .ticket-time {
+      font-size: 1.2rem;
+      margin-bottom: 5px;
+    }
+    .estado-llamado {
+      background-color: #d4edda;
+      border-left: 5px solid #28a745;
+    }
+    .estado-proximo {
+      background-color: #fff3cd;
+      border-left: 5px solid #ffc107;
+    }
+    .estado-pendiente {
+      background-color: #ffffff;
+      border-left: 5px solid #dee2e6;
+    }
+    .bottom-btn {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container text-center py-4">
+    <img src="logo.png" alt="Logo Universidad del Valle" class="logo mb-3">
+    <h1 class="mb-4">Sistema de Tiquetes</h1>
+
+    <!-- MODO GENERAR -->
+    <div id="generar">
+      <div class="card mx-auto" style="max-width: 500px;">
+        <div class="card-body">
+          <h4 class="card-title">Generar Tiquete</h4>
+          <input type="text" id="nombre" class="form-control my-2" placeholder="Nombre del usuario">
+          <input type="text" id="codigo" class="form-control my-2" placeholder="Código personalizado">
+          <input type="text" id="cedula" class="form-control my-2" placeholder="Cédula (opcional)">
+          <button class="btn btn-success w-100 my-2" onclick="generarTiquete()">Generar</button>
+        </div>
+      </div>
+      <ul id="listaTiquetes" class="list-group mt-4 mx-auto" style="max-width: 500px;"></ul>
+    </div>
+
+    <!-- MODO LLAMAR -->
+    <div id="llamar" class="d-none">
+      <div class="ticket-card mb-4" id="ticketActual" style="display:none;">
+        <div class="ticket-number" id="ticketNumero">#--</div>
+        <div class="ticket-wait">TIEMPO DE ESPERA</div>
+        <div class="ticket-time" id="ticketTiempo">--</div>
+        <div class="mt-3" id="ticketInfo"></div>
+      </div>
+
+      <!-- Controles -->
+      <div class="mb-3">
+        <div class="form-check form-switch d-inline-block me-3">
+          <input class="form-check-input" type="checkbox" id="modoAuto" checked>
+          <label class="form-check-label" for="modoAuto">Modo automático</label>
+        </div>
+        <div class="d-inline-block">
+          <label for="tiempoEspera" class="me-1">Tiempo:</label>
+          <input type="number" id="tiempoEspera" value="60" min="5" max="300" class="form-control d-inline-block" style="width: 80px;">
+          <span>seg</span>
+        </div>
+      </div>
+
+      <!-- Botones -->
+      <div class="d-flex justify-content-center gap-3 mb-3">
+        <button class="btn btn-primary" onclick="siguienteManual()">
+          <i class="bi bi-arrow-right-circle"></i> Llamar siguiente
+        </button>
+        <button class="btn btn-secondary" onclick="detenerLlamado()">
+          <i class="bi bi-stop-circle"></i> Detener llamado
+        </button>
+      </div>
+
+      <ul id="listaLlamado" class="list-group mx-auto" style="max-width: 600px;"></ul>
+    </div>
+  </div>
+
+  <!-- Botón flotante de cambio de modo -->
+  <div class="bottom-btn">
+    <button class="btn btn-outline-dark" onclick="cambiarModo()">
+      <i class="bi bi-arrow-repeat"></i> Cambiar a modo: <span id="modoTexto">Llamar</span>
+    </button>
+  </div>
+
+  <!-- Script -->
+  <script>
+    let tiquetes = JSON.parse(sessionStorage.getItem("tiquetes") || "[]");
+    let index = parseInt(sessionStorage.getItem("llamadoIndex") || "0");
+    let modo = "generar";
+    let cronometroInterval;
+
+    function generarTiquete() {
+      const nombre = document.getElementById("nombre").value.trim();
+      const codigo = document.getElementById("codigo").value.trim();
+      const cedula = document.getElementById("cedula").value.trim();
+      if (!nombre || !codigo) return alert("Nombre y código obligatorios");
+
+      const numero = tiquetes.length + 1;
+      const horaIngreso = Date.now();
+      tiquetes.push({ numero, nombre, codigo, cedula, horaIngreso });
+      sessionStorage.setItem("tiquetes", JSON.stringify(tiquetes));
+
+      document.getElementById("nombre").value = "";
+      document.getElementById("codigo").value = "";
+      document.getElementById("cedula").value = "";
+
+      mostrarTiquetes();
+    }
+
+    function mostrarTiquetes() {
+      const ul = document.getElementById("listaTiquetes");
+      ul.innerHTML = "";
+      tiquetes.forEach(t => {
+        const li = document.createElement("li");
+        li.classList.add("list-group-item");
+        li.innerHTML = `<strong>#${t.numero}</strong> - ${t.nombre} <br><small>(${t.codigo})${t.cedula ? " - Cédula: " + t.cedula : ""}</small>`;
+        ul.appendChild(li);
+      });
+    }
+
+    function mostrarLlamado() {
+      const ul = document.getElementById("listaLlamado");
+      ul.innerHTML = "";
+      tiquetes.forEach((t, i) => {
+        const li = document.createElement("li");
+        li.classList.add("list-group-item");
+        li.classList.add(i < index ? "estado-llamado" : i === index ? "estado-proximo" : "estado-pendiente");
+        li.innerHTML = `<strong>#${t.numero}</strong> - ${t.nombre} <br><small>(${t.codigo})${t.cedula ? " - Cédula: " + t.cedula : ""}</small>`;
+        ul.appendChild(li);
+      });
+    }
+
+    function llamarSiguiente() {
+      if (index >= tiquetes.length) {
+        document.getElementById("ticketActual").style.display = "none";
+        clearInterval(cronometroInterval);
+        return;
+      }
+
+      const t = tiquetes[index];
+      const tiempoMaximo = parseInt(document.getElementById("tiempoEspera").value) || 60;
+      let tiempoRestante = tiempoMaximo;
+
+      document.getElementById("ticketNumero").textContent = `#${t.numero}`;
+      document.getElementById("ticketInfo").innerHTML = `
+        <div><strong>Nombre:</strong> ${t.nombre}</div>
+        <div><strong>Código:</strong> ${t.codigo}</div>
+        ${t.cedula ? `<div><strong>Cédula:</strong> ${t.cedula}</div>` : ""}`;
+      document.getElementById("ticketActual").style.display = "block";
+
+      clearInterval(cronometroInterval);
+      cronometroInterval = setInterval(() => {
+        const minutos = Math.floor(tiempoRestante / 60);
+        const segundos = tiempoRestante % 60;
+        document.getElementById("ticketTiempo").textContent = `${minutos}m ${segundos.toString().padStart(2, '0')}s`;
+        tiempoRestante--;
+
+        if (tiempoRestante < 0) {
+          clearInterval(cronometroInterval);
+          if (document.getElementById("modoAuto").checked) {
+            index++;
+            sessionStorage.setItem("llamadoIndex", index);
+            llamarSiguiente();
+          }
+        }
+      }, 1000);
+
+      mostrarLlamado();
+    }
+
+    function siguienteManual() {
+      clearInterval(cronometroInterval);
+      index++;
+      sessionStorage.setItem("llamadoIndex", index);
+      llamarSiguiente();
+    }
+
+    function detenerLlamado() {
+      clearInterval(cronometroInterval);
+      alert("Llamado detenido.");
+    }
+
+    function cambiarModo() {
+      if (modo === "generar") {
+        modo = "llamar";
+        document.getElementById("generar").classList.add("d-none");
+        document.getElementById("llamar").classList.remove("d-none");
+        document.getElementById("modoTexto").textContent = "Generar";
+        llamarSiguiente();
+      } else {
+        modo = "generar";
+        document.getElementById("llamar").classList.add("d-none");
+        document.getElementById("generar").classList.remove("d-none");
+        document.getElementById("modoTexto").textContent = "Llamar";
+        clearInterval(cronometroInterval);
+      }
+    }
+
+    mostrarTiquetes();
+  </script>
+</body>
+</html>

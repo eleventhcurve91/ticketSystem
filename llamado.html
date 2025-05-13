@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Llamado de Tiquetes</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Llamado de Tiquetes</h1>
+  <button onclick="llamarSiguiente()">📢 Llamar siguiente</button>
+
+  <div id="llamado" style="margin-top:20px; font-size: 24px;"></div>
+
+  <script>
+    let tiquetes = JSON.parse(sessionStorage.getItem("tiquetes") || "[]");
+    let index = parseInt(sessionStorage.getItem("llamadoIndex") || "0");
+
+    function llamarSiguiente() {
+      if (index < tiquetes.length) {
+        const t = tiquetes[index];
+        document.getElementById("llamado").textContent =
+          `Llamado #${t.numero}: ${t.nombre} (${t.codigo})`;
+        index++;
+        sessionStorage.setItem("llamadoIndex", index);
+      } else {
+        document.getElementById("llamado").textContent = "🎉 No hay más tiquetes.";
+      }
+    }
+  </script>
+</body>
+</html>
